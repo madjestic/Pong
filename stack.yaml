@@ -8,4 +8,4 @@ extra-deps:
 - sdl2-2.3.0
 - text-1.2.2.2
 - Yampa-0.10.6
-resolver: lts-11.11
+resolver: lts-9.13
