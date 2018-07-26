@@ -44,6 +44,11 @@ closeWindow window =
     SDL.destroyWindow window
     SDL.quit
 
+-- initGL :: IO ()
+-- initGL =
+--   do
+    
+
 draw :: SDL.Window -> Double -> (Double, Double) -> IO ()
 draw window ppos bpos =
   do
@@ -54,6 +59,8 @@ draw window ppos bpos =
       bindVertexArrayObject $= Just triangles
       drawElements Triangles numIndices GL.UnsignedInt nullPtr
 
+      GL.accum GL.Accum 0.9
+      GL.accum GL.Return 0.9
       SDL.glSwapWindow window
 
 -- implement accu      
@@ -211,8 +218,9 @@ animate title winWidth winHeight sf =
     -- Output Logic --------------------------------------------------------
         renderOutput _ ((ppos, bpos), shouldExit) =
           do
-            -- draw window ppos bpos
-            draw' window ppos bpos 50 0
+            GL.accum GL.Load 0.9
+            draw window ppos bpos
+            -- draw' window ppos bpos 50 0
             return shouldExit 
 
     -- Reactimate -----------------------------------------------------
@@ -357,6 +365,7 @@ data Game = Game { pPos  :: Double    -- Player Position
                  , bVel  :: Vel       --        Velocity
                  , lives :: Integer
                  , score :: Integer
+                 --, iter  :: Integer   -- for Motion Blur
                  } 
           deriving Show
 
