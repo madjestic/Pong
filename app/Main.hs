@@ -21,7 +21,8 @@ import Debug.Trace as DT
 
 -- < Rendering > ----------------------------------------------------------
 openWindow :: Text -> (CInt, CInt) -> IO SDL.Window
-openWindow title (sizex,sizey) = do
+openWindow title (sizex,sizey) =
+  do
     SDL.initialize [SDL.InitVideo]
     SDL.HintRenderScaleQuality $= SDL.ScaleLinear                    
     do renderQuality <- SDL.get SDL.HintRenderScaleQuality          
@@ -38,12 +39,14 @@ openWindow title (sizex,sizey) = do
     return window
 
 closeWindow :: SDL.Window -> IO ()
-closeWindow window = do
+closeWindow window =
+  do
     SDL.destroyWindow window
     SDL.quit
 
 draw :: SDL.Window -> Double -> (Double, Double) -> IO ()
-draw window ppos bpos = do
+draw window ppos bpos =
+  do
       (Descriptor triangles numIndices) <- initResources verticies indices ppos bpos
 
       GL.clearColor $= Color4 0 0 0 1
@@ -52,6 +55,28 @@ draw window ppos bpos = do
       drawElements Triangles numIndices GL.UnsignedInt nullPtr
 
       SDL.glSwapWindow window
+
+-- implement accu      
+
+draw' :: SDL.Window -> Double -> (Double, Double) -> Int -> Int -> IO ()
+draw' window ppos bpos n iter =
+  do
+      (Descriptor triangles numIndices) <- initResources verticies indices ppos bpos
+
+      GL.clearColor $= Color4 0 0 0 1
+      GL.clear [ColorBuffer]
+      bindVertexArrayObject $= Just triangles
+      drawElements Triangles numIndices GL.UnsignedInt nullPtr
+
+      if(iter == 0)
+        then GL.accum GL.Load  (1.0 / (fromIntegral n))
+        else GL.accum GL.Accum (1.0 / (fromIntegral n))
+
+      if iter < n
+         then draw' window ppos bpos n (iter + 1)
+         else do
+           SDL.glSwapWindow window
+           --draw' window ppos bpos n 0
 
 -- < OpenGL > -------------------------------------------------------------
 data Descriptor =
@@ -119,17 +144,16 @@ initResources vs idx ppos bpos =
         (ToFloat, VertexArrayDescriptor 2 Float stride (bufferOffset uvOffset))
     vertexAttribArray uvCoords    $= Enabled
 
-    -- || Shaders
+    -- | Shaders
     program <- loadShaders [
         ShaderInfo VertexShader (FileSource "Shaders/shader.vert"),
         ShaderInfo FragmentShader (FileSource "Shaders/shader.frag")]
     currentProgram $= Just program
 
-    -- Set Uniforms
+    -- | Set Uniforms
     location0         <- get (uniformLocation program "fPPos")
     uniform location0 $= (realToFrac ppos :: GLfloat)
 
-    --let bpos = (0.0,0.5)
     location1         <- get (uniformLocation program "vBPos")
     uniform location1 $= (Vector2 (realToFrac $ fst bpos)
                                   (realToFrac $ snd bpos) :: Vector2 GLfloat)
@@ -142,8 +166,7 @@ initResources vs idx ppos bpos =
     location3         <- get (uniformLocation program "u_time")
     uniform location3 $= (currentTime :: GLfloat)
     
-
-    -- Set Transform Matrix
+    -- | Set Transform Matrix
     let tr =
           [ 1, 0, 0, 0
           , 0, 1, 0, 0
@@ -154,41 +177,42 @@ initResources vs idx ppos bpos =
     location4         <- get (uniformLocation program "transform")
     uniform location4 $= transform
     
-
-    -- || Unload buffers
+    -- | Unload buffers
     bindVertexArrayObject         $= Nothing
-    -- bindBuffer ElementArrayBuffer $= Nothing
+    bindBuffer ElementArrayBuffer $= Nothing
 
     -- return $ Descriptor triangles posOffset (fromIntegral numIndices)
     return $ Descriptor triangles (fromIntegral numIndices)
-    
 
 bufferOffset :: Integral a => a -> Ptr b
 bufferOffset = plusPtr nullPtr . fromIntegral
 
  -- < Animate > ------------------------------------------------------------
-
 type WinInput = Event SDL.EventPayload
 type WinOutput = ( (Double, (Double, Double)), Bool)
 
 animate :: Text                   -- ^ window title
-        -> Int                   -- ^ window width in pixels
-        -> Int                   -- ^ window height in pixels
+        -> Int                    -- ^ window width in pixels
+        -> Int                    -- ^ window height in pixels
         -> SF WinInput WinOutput  -- ^ signal function to animate
         -> IO ()
-animate title winWidth winHeight sf = do
+animate title winWidth winHeight sf =
+  do
     window <- openWindow title (toEnum winWidth, toEnum winHeight)
 
     lastInteraction <- newMVar =<< SDL.time   
-    -- Input Logic -----------------------------------------------------
-    let senseInput _ = do
+    -- Input Logic ---------------------------------------------------------
+    let senseInput _ =
+          do
             currentTime <- SDL.time
             dt <- (currentTime -) <$> swapMVar lastInteraction currentTime
             mEvent <- SDL.pollEvent                          
             return (dt, Event . SDL.eventPayload <$> mEvent) 
-    -- Output Logic -----------------------------------------------------
-        renderOutput _ ((ppos, bpos), shouldExit) = do
-            draw window ppos bpos
+    -- Output Logic --------------------------------------------------------
+        renderOutput _ ((ppos, bpos), shouldExit) =
+          do
+            -- draw window ppos bpos
+            draw' window ppos bpos 50 0
             return shouldExit 
 
     -- Reactimate -----------------------------------------------------
@@ -219,8 +243,8 @@ playerPos pp0 =
                          , keyRight ] `tag` res)
 
       cont (x, keyLeft, keyRight) =
-        if | isEvent keyLeft -> movePlayer x (-0.1)
-           | otherwise       -> movePlayer x   0.1
+        if | isEvent keyLeft -> movePlayer x (-0.5)
+           | otherwise       -> movePlayer x   0.5
 
 movePlayer :: Double -> Double -> SF AppInput Double
 movePlayer pp0 v0 =
@@ -239,21 +263,21 @@ movePlayer pp0 v0 =
 
 ballPos :: Pos -> Vel -> SF () (Pos,Vel)
 ballPos p0 v0 =
-  ballPos' cor' rad bounds p0 v0
+  ballPos' cor' rad p0 v0
     where
         cor'   = cor defPhysics
-        rad    = 30
-        bounds = Bounds { xMin = -400, yMin = -300, xMax = 400, yMax = 300 }
+        rad    = 10 / (fromIntegral resY)
 
-ballPos' :: COR -> Radius -> Bounds -> Pos -> Vel -> SF () (Pos,Vel)
-ballPos' cor rad bounds p0 v0 =
+ballPos' :: COR -> Radius -> Pos -> Vel -> SF () (Pos,Vel)
+ballPos' cor rad p0 v0 =
   bouncingBall' p0 v0
     where
       bouncingBall' p0 v0 =
         switch sf cont
           where
             sf   = proc () -> do
-              ((p,v), col) <- fallingBall' rad bounds p0 v0 -< ()
+              ((p,v), col) <- -- DT.trace ("ball pos: " ++ show p0 ++ "\n") $
+                              collidingBall' rad p0 v0 -< ()
               returnA -< ((p, v), col `tag` fromEvent col ) :: ((Pos, Vel), Event (Dir,(Pos,Vel)))
             cont (dir,(p,v)) = bouncingBall' p (reflect dir ((-cor) *^ v))            
       reflect l v = (2*(v `dot` l)/(l `dot` l)) *^ l ^-^ v
@@ -267,15 +291,15 @@ fallingBall bp0 bv0 =
          (bp0 ^+^) ^<< integral -< v
     returnA -< (p,v)
       
-fallingBall' :: Radius -> Bounds -> Pos -> Vel ->
+collidingBall' :: Radius -> Pos -> Vel ->
                 SF () ((Pos, Vel), Event (Dir,(Pos,Vel)))
-fallingBall' rad bounds p0 v0  = proc () -> do
+collidingBall' rad p0 v0  = proc () -> do
   pv@(p,v) <- --DT.trace ("(p,v): " ++ show (p0,v0) ++ "\n") $
               fallingBall p0 v0 -< ()
   hitXMin  <- edgeTag ( 1, 0)   -< fst p <= xMin bounds + rad
   hitYMin  <- edgeTag ( 0, 1)   -< snd p <= yMin bounds + rad
   hitXMax  <- edgeTag (-1, 0)   -< fst p >= xMax bounds - rad
-  hitYMax  <- edgeTag ( 0,-1)   -< snd p <= 0.0 -- >= yMax bounds - rad
+  hitYMax  <- edgeTag ( 0,-1)   -< snd p >= yMax bounds - rad
   let hitInfo = foldr1 (mergeBy mergeHits) [hitXMin,hitYMin,hitXMax,hitYMax]
   returnA -< (pv, hitInfo `attach` pv)
   where
@@ -286,20 +310,35 @@ handleExit = quitEvent >>^ isEvent
 
 -- < Game Types > --------------------------------------------------------------
 
-type COR     = Double
+type COR  = Double
 type Pos  = (Double, Double)
 type Vel  = (Double, Double)
 type Acc  = (Double, Double)
 type Dir  = (Double, Double)
 
-data Bounds = Bounds {
-  xMin  :: Double,
-  yMin  :: Double,
-  xMax  :: Double,
-  yMax  :: Double
-}
+data Bounds =
+  Bounds
+  { xMin  :: Double
+  , xMax  :: Double
+  , yMin  :: Double
+  , yMax  :: Double }
 
-bounds = Bounds { xMin = -400, yMin = 50, xMax = 400, yMax = 600 }
+bounds :: Bounds
+bounds = 
+  bounds' xMin xMax yMin yMax
+    where
+      xMin = -400 -- minX
+      xMax =  400 -- maxX
+      yMin =  0   -- minY
+      yMax =  600 -- maxY
+
+bounds' :: Double -> Double -> Double -> Double -> Bounds
+bounds' xmin xmax ymin ymax =
+  Bounds
+  { xMin = xmin / fromIntegral resX
+  , xMax = xmax / fromIntegral resX
+  , yMin = ymin / fromIntegral resY
+  , yMax = ymax / fromIntegral resY }
 
 data PhysicsContext =
      PhyC
@@ -308,8 +347,8 @@ data PhysicsContext =
        }
 
 defPhysics =
-  PhyC { gee = (0.0,-0.5)
-       , cor = 0.8
+  PhyC { gee = (0.0,-4.9)
+       , cor = 1.0
        }
 
 data Game = Game { pPos  :: Double    -- Player Position
@@ -327,10 +366,10 @@ pp0 :: Double           -- player position
 pp0 = 0
 
 bp0 :: (Double, Double) -- ball position
-bp0 = (0.0,0.5)
+bp0 = (0.0,0.4)
 
 bv0 :: (Double, Double) -- ball velocity
-bv0 = (0.0,0.0)
+bv0 = (1.0,2.5)
 
 game :: SF AppInput Game
 game = switch sf (const game)        
@@ -346,10 +385,6 @@ gameSession =
     ppos         <- playerPos pp0     -< input
     (bpos, bvel) <- ballPos   bp0 bv0 -< ()
     returnA      -< Game ppos pvel bpos bvel lvs sc
-      where
-        cor'   = cor defPhysics
-        rad    = 30
-        bounds = Bounds { xMin = -400, yMin = 200, xMax = 400, yMax = 600 }
 
 pvel = undefined
 lvs  = undefined
