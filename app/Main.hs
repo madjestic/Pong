@@ -57,6 +57,7 @@ draw window ppos bpos =
     GL.accum GL.Accum  (1.0 - mBlur)
     GL.accum GL.Return 1.0
     SDL.glSwapWindow window
+    GL.accum GL.Load mBlur
 
 -- < OpenGL > -------------------------------------------------------------
 data Descriptor =
@@ -191,9 +192,7 @@ animate title winWidth winHeight sf =
     -- Output Logic --------------------------------------------------------
         renderOutput _ ((ppos, bpos), shouldExit) =
           do
-            GL.accum GL.Load mBlur
             draw window ppos bpos
-            -- draw' window ppos bpos 50 0
             return shouldExit 
 
     -- Reactimate -----------------------------------------------------
