@@ -44,46 +44,19 @@ closeWindow window =
     SDL.destroyWindow window
     SDL.quit
 
--- initGL :: IO ()
--- initGL =
---   do
-    
-
 draw :: SDL.Window -> Double -> (Double, Double) -> IO ()
 draw window ppos bpos =
   do
-      (Descriptor triangles numIndices) <- initResources verticies indices ppos bpos
+    (Descriptor triangles numIndices) <- initResources verticies indices ppos bpos
 
-      GL.clearColor $= Color4 0 0 0 1
-      GL.clear [ColorBuffer]
-      bindVertexArrayObject $= Just triangles
-      drawElements Triangles numIndices GL.UnsignedInt nullPtr
+    GL.clearColor $= Color4 0 0 0 1
+    GL.clear [ColorBuffer]
+    bindVertexArrayObject $= Just triangles
+    drawElements Triangles numIndices GL.UnsignedInt nullPtr
 
-      GL.accum GL.Accum 0.9
-      GL.accum GL.Return 0.9
-      SDL.glSwapWindow window
-
--- implement accu      
-
-draw' :: SDL.Window -> Double -> (Double, Double) -> Int -> Int -> IO ()
-draw' window ppos bpos n iter =
-  do
-      (Descriptor triangles numIndices) <- initResources verticies indices ppos bpos
-
-      GL.clearColor $= Color4 0 0 0 1
-      GL.clear [ColorBuffer]
-      bindVertexArrayObject $= Just triangles
-      drawElements Triangles numIndices GL.UnsignedInt nullPtr
-
-      if(iter == 0)
-        then GL.accum GL.Load  (1.0 / (fromIntegral n))
-        else GL.accum GL.Accum (1.0 / (fromIntegral n))
-
-      if iter < n
-         then draw' window ppos bpos n (iter + 1)
-         else do
-           SDL.glSwapWindow window
-           --draw' window ppos bpos n 0
+    GL.accum GL.Accum  (1.0 - mBlur)
+    GL.accum GL.Return 1.0
+    SDL.glSwapWindow window
 
 -- < OpenGL > -------------------------------------------------------------
 data Descriptor =
@@ -218,7 +191,7 @@ animate title winWidth winHeight sf =
     -- Output Logic --------------------------------------------------------
         renderOutput _ ((ppos, bpos), shouldExit) =
           do
-            GL.accum GL.Load 0.9
+            GL.accum GL.Load mBlur
             draw window ppos bpos
             -- draw' window ppos bpos 50 0
             return shouldExit 
@@ -378,7 +351,10 @@ bp0 :: (Double, Double) -- ball position
 bp0 = (0.0,0.4)
 
 bv0 :: (Double, Double) -- ball velocity
-bv0 = (1.0,2.5)
+bv0 = (1.0,1.0)
+
+mBlur :: Float
+mBlur = 0.25
 
 game :: SF AppInput Game
 game = switch sf (const game)        
@@ -406,10 +382,11 @@ resY = 600 :: Int
 
 main :: IO ()
 main =
-     animate "Pong"
-             resX
-             resY
-             (parseWinInput >>> ( ((game >>^ pPos) &&& (game >>^ bPos) ) &&& handleExit))
+  do
+    animate "Pong"
+            resX
+            resY
+            (parseWinInput >>> ( ((game >>^ pPos) &&& (game >>^ bPos) ) &&& handleExit))
 
 -- | Game state:
 -- player pos :: Double
