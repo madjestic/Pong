@@ -17,7 +17,7 @@ import Text.Printf
 import SDL                             hiding (Point, Event, Timer, (^+^), (*^), (^-^), dot)
 import Input
 
--- import Debug.Trace as DT
+import Debug.Trace as DT
 
 -- < Rendering > ----------------------------------------------------------
 openWindow :: Text -> (CInt, CInt) -> IO SDL.Window
@@ -162,6 +162,7 @@ initResources vs idx ppos bpos =
     bindVertexArrayObject         $= Nothing
     bindBuffer ElementArrayBuffer $= Nothing
 
+    -- return $ Descriptor triangles posOffset (fromIntegral numIndices)
     return $ Descriptor triangles (fromIntegral numIndices)
 
 bufferOffset :: Integral a => a -> Ptr b
@@ -169,6 +170,11 @@ bufferOffset = plusPtr nullPtr . fromIntegral
 
  -- < Animate > ------------------------------------------------------------
 type WinInput = Event SDL.EventPayload
+-- TODO: refactor to pass game state, rather than individual substates
+-- ~
+-- type WinOutput = ( Game, Bool) - something like that would be nice!
+-- type WinOutput = ( (Double, (Double, Double)), Bool)
+--type WinOutput = (GameState, Bool)
 type WinOutput = (Game, Bool)
 
 animate :: Text                   -- ^ window title
@@ -189,7 +195,7 @@ animate title winWidth winHeight sf =
             mEvent <- SDL.pollEvent                          
             return (dt, Event . SDL.eventPayload <$> mEvent) 
     -- Output Logic --------------------------------------------------------
-        renderOutput _ ((Game ppos bpos), shouldExit) =
+        renderSF _ ((Game ppos bpos), shouldExit) =
           do
             draw window ppos bpos
             return shouldExit 
@@ -197,7 +203,7 @@ animate title winWidth winHeight sf =
     -- Reactimate -----------------------------------------------------
     reactimate (return NoEvent)
                senseInput
-               renderOutput
+               renderSF
                sf
 
     closeWindow window
@@ -230,7 +236,7 @@ movePlayer pp0 v0 =
   switch sf cont
     where
          sf = proc input -> do
-            p       <- -- DT.trace ("p: " ++ show pp0 ++ "\n") $
+            p       <- DT.trace ("p: " ++ show pp0 ++ "\n") $
                        (pp0 +) ^<< integral -< v0
             keyLeft <- key SDL.ScancodeLeft  "Released" -< input
             keyRight<- key SDL.ScancodeRight "Released" -< input
@@ -240,8 +246,8 @@ movePlayer pp0 v0 =
          cont = playerPos
 
 
-ballPos :: Vel -> Pos -> SF () (Pos,Vel)
-ballPos v0 p0 =
+ballPos :: Pos -> Vel -> SF () (Pos,Vel)
+ballPos p0 v0 =
   ballPos' cor' rad p0 v0
     where
         cor'   = cor defPhysics
@@ -264,9 +270,9 @@ ballPos' cor rad p0 v0 =
 fallingBall :: Pos -> Vel -> SF () (Pos, Vel)
 fallingBall bp0 bv0 =
   proc () -> do
-    v <- -- DT.trace ("bv0: " ++ show bv0 ++ "\n") $
+    v <- DT.trace ("bv0: " ++ show bv0 ++ "\n") $
          (bv0 ^+^) ^<< integral -< gee defPhysics
-    p <- -- DT.trace ("bp0: " ++ show bp0 ++ "\n") $
+    p <- DT.trace ("bp0: " ++ show bp0 ++ "\n") $
          (bp0 ^+^) ^<< integral -< v
     returnA -< (p,v)
       
@@ -289,13 +295,18 @@ handleExit = quitEvent >>^ isEvent
 
 -- < Game Types > --------------------------------------------------------------
 
+type COR  = Double
+type Pos  = (Double, Double)
+type Vel  = (Double, Double)
+type Acc  = (Double, Double)
+type Dir  = (Double, Double)
+
 data Bounds =
   Bounds
   { xMin  :: Double
   , xMax  :: Double
   , yMin  :: Double
-  , yMax  :: Double
-  }
+  , yMax  :: Double }
 
 bounds :: Bounds
 bounds = 
@@ -312,45 +323,60 @@ bounds' xmin xmax ymin ymax =
   { xMin = xmin / fromIntegral resX
   , xMax = xmax / fromIntegral resX
   , yMin = ymin / fromIntegral resY
-  , yMax = ymax / fromIntegral resY
-  }
+  , yMax = ymax / fromIntegral resY }
 
 data PhysicsContext =
-     PhysC
-     { gee :: Acc    -- A unit of acceleration due to gravity
-     , cor :: Double -- coefficient of restitution
-     }
-  deriving Show
-
-type COR  = Double
-type Pos  = (Double, Double)
-type Vel  = (Double, Double)
-type Acc  = (Double, Double)
-type Dir  = (Double, Double)
+     PhyC
+       { gee :: Acc    -- A unit of acceleration due to gravity
+       , cor :: Double -- coefficient of restitution
+       }
 
 defPhysics =
-  PhysC
-  { gee = (0.0,-4.9)
-  , cor = 1.01
-  }
+  PhyC { gee = (0.0,-4.9)
+       , cor = 1.0
+       }
+
+data Suka = Blad { foo :: Double
+                 , bar :: String }
+
+-- data Game = Game { pPos  :: Double    -- Player Position
+-- --                 , pVel  :: Vel       --        Velocity
+--                  , bPos  :: Pos       -- Ball   Position
+-- --                 , bVel  :: Vel       --        Velocity
+-- --                 , lives :: Integer
+-- --                 , score :: Integer
+--                  --, iter  :: Integer   -- for Motion Blur
+--                  } 
+--           deriving Show
 
 data Game =
-     Game
-     { pPos  :: Double    -- Player Position
-     , bPos  :: Pos       -- Ball   Position
-     } 
-  deriving Show
+     Game { pPos  :: Double    -- Player Position
+          , bPos  :: Pos       -- Ball   Position
+--          , exit  :: Bool      -- Reset  Game
+          } 
+          deriving Show
+
+
+type GameState = (Double, (Double, Double))
+--   { pPosST  :: Double
+--   , bPosST  :: Pos }
 
 -- < Game Logic > ---------------------------------------------------------
 
-initGame :: Game
-initGame = Game pp0 bp0
-  where
-    pp0 = 0         :: Double
-    bp0 = (0.0,0.4) :: (Double, Double)
+pp0 :: Double           -- player position
+pp0 = 0
+
+bp0 :: (Double, Double) -- ball position
+bp0 = (0.0,0.4)
+
+bv0 :: (Double, Double) -- ball velocity
+bv0 = (1.0,1.0)
 
 mBlur :: Float
 mBlur = 0.25
+
+initGame :: Game -> Game
+initGame x = x
 
 game :: SF AppInput Game
 game = switch sf (const game)        
@@ -363,12 +389,21 @@ game = switch sf (const game)
 gameSession :: SF AppInput Game
 gameSession =
   proc input -> do
-    ppos         <- playerPos   $ pPos initGame -< input
-    (bpos, bvel) <- ballPos bv0 $ bPos initGame -< ()
+    ppos         <- playerPos pp0     -< input
+    (bpos, bvel) <- ballPos   bp0 bv0 -< ()
+    --returnA      -< Game ppos pvel bpos bvel lvs sc
     returnA      -< Game ppos bpos
-      where bv0 = (1.0,1.0) :: (Double, Double)
 
+pvel = undefined
+lvs  = undefined
+sc   = undefined
+    
 -- < Main Function > ------------------------------------------------------
+
+data Foo =
+     Bar { foo :: Double
+         , bar :: String }
+         deriving Show
 
 resX = 800 :: Int
 resY = 600 :: Int
@@ -379,7 +414,42 @@ main =
     animate "Pong"
             resX
             resY
+            --(parseWinInput >>> ((game >>^ initGame) &&& handleExit))
             (parseWinInput >>> (game &&& handleExit))
+            -- | TODO: look at other examples of state handling, see if it all can be compressed to e.g.:
+            -- (parseWinInput >>> ( ((game >>^ gameState)) &&& handleExit)) ... 
+
+-- (>>^) :: Arrow a => a b c -> (c -> d) -> a b d
+-- game :: SF AppInput Game
+--             pPos :: Game -> Double
+-- (game >>^ pPos)
+--      :: SF AppInput Double
+
+-- (game >>^ bPos)
+--      :: SF AppInput (Double, Double)
+
+-- (&&&) :: a b c -> a b c' -> a b (c, c')
+-- (game >>^ pPos) &&& (game >>^ bPos)
+-- :: SF AppInput Double -> SF AppInput (Double, Double) -> SF AppInput (Double, (Double, Double))
+
+-- handleExit :: SF AppInput Bool
+-- ( ((game >>^ pPos) &&& (game >>^ bPos)) &&& handleExit) ::
+-- SF AppInput (Double, (Double, Double)) &&& SF AppInput Bool -> SF AppInput (Double, (Double, Double), Bool)
+
+-- parseWinInput :: SF WinInput AppInput
+-- (>>>) :: Category cat => cat a b -> cat b c -> cat a c
+-- ...           :: SF          AppInput (Double, (Double, Double), Bool) ->
+-- SF WinInput (Double, (Double, Double), Bool)
+
+-- parseWinInput :: SF WinInput AppInput
+-- game :: SF AppInput Game
+-- pPos :: Game -> Double
+-- bPos :: Game -> Double
+-- handleExit :: SF AppInput Bool
+-- (>>^) :: Arrow a => a b c -> (c -> d) -> a b d
+-- (>>>) :: Category cat => cat a b -> cat b c -> cat a c
+-- (&&&) :: a b c -> a b c' -> a b (c, c')
+
 
 -- | Game state:
 -- player pos :: Double
@@ -394,8 +464,7 @@ main =
 -- lives      :: Integer
 -- lives  (x) <- n->0
 --
--- screen     :: Integer
--- screen (x) <- 0->n
+--
 -- Splash screen (show for 3 seconds, Any Key -> skip to Start menu)
 --   Start menu (Press Start -> Game screen, Exit)
 --     Game screen (play, Esc -> exit)
