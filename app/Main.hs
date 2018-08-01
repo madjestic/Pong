@@ -350,7 +350,7 @@ initGame = Game pp0 bp0
     bp0 = (0.0,0.4) :: (Double, Double)
 
 mBlur :: Float
-mBlur = 0.25
+mBlur = 0.5
 
 game :: SF AppInput Game
 game = switch sf (const game)        
@@ -366,7 +366,7 @@ gameSession =
     ppos         <- playerPos   $ pPos initGame -< input
     (bpos, bvel) <- ballPos bv0 $ bPos initGame -< ()
     returnA      -< Game ppos bpos
-      where bv0 = (1.0,1.0) :: (Double, Double)
+      where bv0 = (0.5,0.5) :: (Double, Double)
 
 -- < Main Function > ------------------------------------------------------
 
