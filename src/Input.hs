@@ -31,7 +31,7 @@ import Debug.Trace as DT
 mousePos :: SF AppInput (Double,Double)
 mousePos = arr inpMousePos
 
---nn | Events that indicate left button click
+-- | Events that indicate left button click
 lbp :: SF AppInput (Event ())
 lbp = lbpPos >>^ tagWith ()
 
