@@ -247,19 +247,15 @@ mainGame =
     returnA -< (gs, gs)
 
 gameIntro :: SF AppInput Game
-gameIntro = switch
-  ( showIntro &&& after loadDelay ())
-  ( \_ -> gamePlay )
-
-showIntro :: SF AppInput Game
-showIntro =
+gameIntro =
   switch sf (const gamePlay)        
      where sf =
              proc input -> do
                gameState    <- introSession -< input
                skip         <- key SDL.ScancodeSpace "Pressed" -< input
-               gstg         <- stageSF GameIntro -< ()
-               returnA      -< (gameState, skip)
+               cont         <- after loadDelay () -< ()
+               gstg         <- stageSF GameIntro  -< ()
+               returnA      -< (gameState, skip `lMerge` cont)
                  where bv0 = (0.5,0.5) :: (Double, Double)
 
 gamePlay :: SF AppInput Game
@@ -286,7 +282,6 @@ introSession =
     (bpos, bvel) <- ballPos bv0 $ bPos defaultGameState -< ()
     returnA      -< Game ppos bpos GameIntro
       where bv0 = (0.5,0.5) :: (Double, Double)
-
 
 -- < Global Constants > ---------------------------------------------------
 mBlur     = 0.25 :: Float
