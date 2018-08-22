@@ -468,3 +468,26 @@ main =
 -- Splash screen (show for 3 seconds, Any Key -> skip to Start menu)
 --   Start menu (Press Start -> Game screen, Exit)
 --     Game screen (play, Esc -> exit)
+
+testGame :: SF AppInput Game
+testGame =
+  proc input -> do
+    returnA -< Game ppos bpos GamePlaying
+      where
+        ppos = pPos defaultGameState
+        bpos = bPos defaultGameState
+
+gameIntro :: SF AppInput Game
+gameIntro =
+  switch sf (const mainGame)        
+     where sf =
+             proc input -> do
+               gameState <- gameSession -< input
+               suka      <- returnA -< (Game ppos bpos GamePlaying)
+               skip      <- key SDL.ScancodeSpace "Pressed" -< input
+               cont      <- after loadDelay () -< ()
+               returnA   -< (gameState, skip `lMerge` cont)
+                 where
+                   playGame = Game ppos bpos GamePlaying
+                   ppos = pPos defaultGame
+                   bpos = bPos defaultGame

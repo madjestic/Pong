@@ -48,9 +48,9 @@ draw window (Game ppos bpos gstg) =
 type WinInput  = Event SDL.EventPayload
 type WinOutput = (Game, Bool)
 
-animate :: Text                   -- ^ window title
-        -> Int                    -- ^ window width in pixels
-        -> Int                    -- ^ window height in pixels
+animate :: Text                     -- ^ window title
+        -> Int                      -- ^ window width in pixels
+        -> Int                      -- ^ window height in pixels
         -> SF WinInput (Game, Bool) -- ^ signal function to animate
         -> IO ()
 animate title winWidth winHeight sf = do
@@ -112,11 +112,6 @@ movePlayer pp0 v0 =
                            [ keyLeft  
                            , keyRight ] `tag` p) :: (Double, Event Double)
          cont = playerPos
-
-stageSF :: GameStage -> SF () (GameStage)
-stageSF gstg =
-  proc () -> do
-    returnA -< (gstg)
 
 ballPos :: Vel -> Pos -> SF () (Pos,Vel)
 ballPos v0 p0 =
@@ -218,9 +213,6 @@ data GameStage = GameIntro
                | GameMenu
                deriving Show
 
-gameStage :: Game -> GameStage
-gameStage (Game p0 b0 gs) = gs
-
 data Game =
      Game
      { pPos :: Double    -- Player Position
@@ -231,36 +223,57 @@ data Game =
 
 type Pos  = (Double, Double)
 
-defaultGameState :: Game
-defaultGameState = Game pp0 bp0 GameIntro
+defaultGame :: Game
+defaultGame = Game pp0 bp0 GameIntro
   where
     pp0 = 0         :: Double
     bp0 = (0.0,0.4) :: (Double, Double)
 
 mainGame :: SF AppInput Game
 mainGame =
-  loopPre defaultGameState $ 
+  loopPre defaultGame $ 
   proc (input, gameState) -> do
-    gs <- case gameStage gameState of
+    gs <- case gStg gameState of
             GameIntro   -> gameIntro -< input
             GamePlaying -> gamePlay  -< input
     returnA -< (gs, gs)
 
+mainGame' :: SF AppInput Game
+mainGame' =
+  loopPre defaultGame $ 
+  proc (input, gameState) -> do
+    gs <- case gStg gameState of
+            GameIntro   -> gameIntro -< input
+            GamePlaying -> gamePlay  -< input
+    returnA -< (gs, gs)
+
+foo x =
+  case x of
+    0 -> bar x
+    1 -> undefined
+
+bar = undefined
+
+baz :: Game -> SF AppInput Game
+baz = undefined
+
 gameIntro :: SF AppInput Game
 gameIntro =
-  switch sf (const gamePlay)        
+  switch sf cont        
      where sf =
              proc input -> do
-               gameState    <- introSession -< input
-               skip         <- key SDL.ScancodeSpace "Pressed" -< input
-               cont         <- after loadDelay () -< ()
-               gstg         <- stageSF GameIntro  -< ()
-               returnA      -< (gameState, skip `lMerge` cont)
-                 where bv0 = (0.5,0.5) :: (Double, Double)
+               introState <- returnA -< defaultGame
+               playState  <- returnA -< defaultGame { gStg =  GamePlaying }
+               skipE      <- key SDL.ScancodeSpace "Pressed" -< input
+               waitE      <- after loadDelay () -< ()
+               returnA    -< (introState, (skipE `lMerge` waitE) `tag` playState)
+           cont game  = 
+             proc input -> do
+               returnA  -< game
 
 gamePlay :: SF AppInput Game
 gamePlay =
-    switch sf (const gamePlay)        
+    switch sf (const mainGame)        
      where sf =
              proc input -> do
                gameState <- gameSession -< input
@@ -270,17 +283,9 @@ gamePlay =
 gameSession :: SF AppInput Game
 gameSession =
   proc input -> do
-    ppos         <- playerPos   $ pPos defaultGameState -< input
-    (bpos, bvel) <- ballPos bv0 $ bPos defaultGameState -< ()
+    ppos         <- playerPos   $ pPos defaultGame -< input
+    (bpos, bvel) <- ballPos bv0 $ bPos defaultGame -< ()
     returnA      -< Game ppos bpos GamePlaying
-      where bv0 = (0.5,0.5) :: (Double, Double)
-
-introSession :: SF AppInput Game
-introSession =
-  proc input -> do
-    ppos         <- playerPos   $ pPos defaultGameState -< input
-    (bpos, bvel) <- ballPos bv0 $ bPos defaultGameState -< ()
-    returnA      -< Game ppos bpos GameIntro
       where bv0 = (0.5,0.5) :: (Double, Double)
 
 -- < Global Constants > ---------------------------------------------------
@@ -314,6 +319,6 @@ main =  do
 --
 -- screen     :: Integer
 -- screen (x) <- 0->n
--- Splash screen (show for 3 seconds, Any Key -> skip to Start menu)
+-- Splash screen (show for 3 seconds, Any Key -> skipEvent to Start menu)
 --   Start menu (Press Start -> Game screen, Exit)
---     Game screen (play, Esc -> exit)
+--     Game screen (playState, Esc -> exit)
