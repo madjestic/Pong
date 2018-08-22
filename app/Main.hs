@@ -234,36 +234,17 @@ mainGame =
   loopPre defaultGame $ 
   proc (input, gameState) -> do
     gs <- case gStg gameState of
-            GameIntro   -> gameIntro -< input
+            GameIntro   -> gameIntro -< (input, gameState)
             GamePlaying -> gamePlay  -< input
     returnA -< (gs, gs)
 
-mainGame' :: SF AppInput Game
-mainGame' =
-  loopPre defaultGame $ 
-  proc (input, gameState) -> do
-    gs <- case gStg gameState of
-            GameIntro   -> gameIntro -< input
-            GamePlaying -> gamePlay  -< input
-    returnA -< (gs, gs)
-
-foo x =
-  case x of
-    0 -> bar x
-    1 -> undefined
-
-bar = undefined
-
-baz :: Game -> SF AppInput Game
-baz = undefined
-
-gameIntro :: SF AppInput Game
+gameIntro :: SF (AppInput, Game) Game
 gameIntro =
   switch sf cont        
      where sf =
-             proc input -> do
-               introState <- returnA -< defaultGame
-               playState  <- returnA -< defaultGame { gStg =  GamePlaying }
+             proc (input, gameState) -> do
+               introState <- returnA -< gameState
+               playState  <- returnA -< gameState { gStg =  GamePlaying }
                skipE      <- key SDL.ScancodeSpace "Pressed" -< input
                waitE      <- after loadDelay () -< ()
                returnA    -< (introState, (skipE `lMerge` waitE) `tag` playState)
