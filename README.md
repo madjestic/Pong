@@ -1,8 +1,8 @@
 # Pong
 
-It's alive!  A first stab at a game of Pong, using Haskell, FRP (Yampa), SDL2 and OpenGL.
+A game of Pong, using Haskell, FRP (Yampa), SDL2 and OpenGL.
 
-[a youtube video](https://www.youtube.com/watch?v=QyRzJuv_3bk)
+[a youtube video](https://youtu.be/YtuU4Lb5xBI)
 
 Credits:
-https://github.com/fatuhoku/haskell-yampa-bouncing-ball/blob/master/src/Simulation.hs
+[physics/collision code](https://github.com/fatuhoku/haskell-yampa-bouncing-ball/blob/master/src/Simulation.hs)
