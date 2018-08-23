@@ -15,6 +15,7 @@ import Foreign.C
 import Foreign.Marshal.Array                  (withArray)
 import Foreign.Ptr                            (plusPtr, nullPtr, Ptr)
 import Foreign.Storable                       (sizeOf)
+import Graphics.GLUtil (readTexture, texture2DWrap)
 import Graphics.Rendering.OpenGL as GL hiding (Size)
 import SDL                             hiding (Point, Event, Timer, (^+^), (*^), (^-^), dot)
 
@@ -111,6 +112,13 @@ initIntroResources vs idx ppos bpos =
         (ToFloat, VertexArrayDescriptor 2 Float stride (bufferOffset uvOffset))
     vertexAttribArray uvCoords    $= Enabled
 
+    -- | Assign Textures
+    activeTexture            $= TextureUnit 0
+    let tex_00 = "Resources/Textures/Pong.png"
+    tx0 <- loadTex tex_00
+    texture Texture2D        $= Enabled
+    textureBinding Texture2D $= Just tx0
+
     -- | Shaders
     program <- loadShaders [
         ShaderInfo VertexShader   (FileSource "Shaders/gameIntro.vert"),
@@ -150,6 +158,13 @@ initIntroResources vs idx ppos bpos =
 
     return $ Descriptor triangles (fromIntegral numIndices)
 
+loadTex :: FilePath -> IO TextureObject
+loadTex f =
+  do
+    t <- either error id <$> readTexture f
+    textureFilter Texture2D $= ((Linear', Nothing), Linear')
+    texture2DWrap $= (Repeated, ClampToEdge)
+    return t
 
 initGameResources :: [GLfloat] -> [GLuint] -> Double -> (Double, Double) -> IO Descriptor
 initGameResources vs idx ppos bpos =  

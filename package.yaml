@@ -27,6 +27,7 @@ dependencies:
 - sdl2 >= 2.3.0
 - text >= 1.2.2.2
 - Yampa >= 0.10.6
+- GLUtil >= 0.9.3
 
 library:
   source-dirs: src
