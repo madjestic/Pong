@@ -24,7 +24,7 @@ import           Linear.Affine (Point(..))
 import           SDL.Input.Keyboard.Codes
 import qualified SDL
 
-import Debug.Trace as DT
+-- import Debug.Trace as DT
 
 -- <| Signal Functions |> --
 -- | Current mouse position

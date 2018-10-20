@@ -23,7 +23,6 @@ import Rendering
 
 -- < Rendering > ----------------------------------------------------------
 
-draw :: SDL.Window -> Game -> IO ()
 draw window (Game ppos bpos gstg) =
   do
     (Descriptor triangles numIndices) <- gameResources
@@ -271,7 +270,7 @@ gameSession =
 
 -- < Global Constants > ---------------------------------------------------
 mBlur     = 0.25 :: Float
-loadDelay = 2.0  :: Double
+loadDelay = 5.0  :: Double
 resX      = 800  :: Int
 resY      = 600  :: Int
 
@@ -286,20 +285,16 @@ main =  do
 -- | A game of Pong in haskell
 -- 
 -- | Game state:
--- player pos :: Double
--- player pos (x)   <- keyLeft / keyRight
 --
--- ball   pos :: (Double, Double)
--- ball   pos (x,y) <- dynamics + player collision
+-- TODO : Add music
+-- TODO : Add Score
+-- TODO : Add bat collision
+-- TODO : Add Lives Count
+-- TODO : Add "You Lost" screen
 --
 -- score      :: Integer
 -- score  (x) <- 0->n
 --
 -- lives      :: Integer
 -- lives  (x) <- n->0
---
--- screen     :: Integer
--- screen (x) <- 0->n
--- Splash screen (show for 3 seconds, Any Key -> skipEvent to Start menu)
---   Start menu (Press Start -> Game screen, Exit)
---     Game screen (playState, Esc -> exit)
+
