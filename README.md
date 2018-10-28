@@ -3,7 +3,7 @@
 A game of Pong, using Haskell, FRP (Yampa), SDL2 and OpenGL.
 
 
-![](Pong/result.png)
+![](https://github.com/madjestic/Pong/blob/master/result.png)
       
 
 [a youtube video](https://www.youtube.com/watch?v=IJ8xHNN0BcA&feature=youtu.be)
