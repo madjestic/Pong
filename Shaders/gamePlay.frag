@@ -24,28 +24,21 @@ void main(void)
   vec3 color = vec3(0.);
   vec3 cnv   = vec3(0.);
   vec2 pst   = gl_FragCoord.xy/u_resolution;
+
   // Paddle
-  color     += vec3((stroke(  pst.x - fPPos.x
-                            , .5
-                            , .2))
-                    , .5
-                    , .0) *
-               vec3((stroke(  pst.y
-                            , .05
-                            , .05))
-                    , .5
-                    , .0);
+  color     += vec3( stroke(pst.x - fPPos.x, .5, .2)
+                   , stroke(pst.x - fPPos.x, .5, .2)
+                   , stroke(pst.x - fPPos.x, .5, .2)) *
+               vec3( stroke(pst.y, .05, .05)
+                   , stroke(pst.y, .05, .05)
+                   , stroke(pst.y, .05, .05));
   // Ball
-  color     += vec3((stroke( pst.x - vBPos.x
-                           , .50
-                           , .04))
-                    , .5
-                    , .0) *
-               vec3((stroke( pst.y
-                           , vBPos.y
-                           , .05))
-                    , .5
-                    , .0);
-  color     += .5 * cnv;
+  color     += vec3( stroke(pst.x - vBPos.x, .50, .04)
+                   , stroke(pst.x - vBPos.x, .50, .04)
+                   , stroke(pst.x - vBPos.x, .50, .04)) *
+               vec3( stroke(pst.y, vBPos.y, .05)
+                   , stroke(pst.y, vBPos.y, .05)
+                   , stroke(pst.y, vBPos.y, .05));
+  // color     += .5 * cnv;
   fColor     = vec4(color, 1.0);
 }
