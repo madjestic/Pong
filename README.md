@@ -2,6 +2,10 @@
 
 A game of Pong, using Haskell, FRP (Yampa), SDL2 and OpenGL.
 
+
+![](Pong/result.png)
+      
+
 [a youtube video](https://www.youtube.com/watch?v=IJ8xHNN0BcA&feature=youtu.be)
 
 Credits:
