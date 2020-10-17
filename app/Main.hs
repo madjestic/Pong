@@ -13,8 +13,10 @@ import FRP.Yampa
 import Graphics.Rendering.OpenGL as GL hiding (Size)
 import Text.Printf
 
-import SDL                             hiding (Point, Event, Timer, (^+^), (*^), (^-^), dot)
+import SDL                                    hiding (Point, Event, Timer, (^+^), (*^), (^-^), dot)
 import SDL.Input.Keyboard.Codes
+import SDL.Raw.Video
+import SDL.Raw.Enum
 
 import Input
 import Rendering
@@ -31,7 +33,12 @@ draw window (Game ppos bpos gstg) =
     GL.clear [ColorBuffer]
     bindVertexArrayObject $= Just triangles
     drawElements Triangles numIndices GL.UnsignedInt nullPtr
-     
+
+    -- multisampling
+    glSetAttribute SDL_GL_MULTISAMPLEBUFFERS 1
+    glSetAttribute SDL_GL_MULTISAMPLESAMPLES 16
+
+    -- accum buffer
     GL.accum GL.Accum  (1.0 - mBlur)
     GL.accum GL.Return 1.0
     SDL.glSwapWindow window
@@ -48,12 +55,12 @@ type WinInput  = Event SDL.EventPayload
 type WinOutput = (Game, Bool)
 
 animate :: Text                     -- ^ window title
-        -> Int                      -- ^ window width in pixels
-        -> Int                      -- ^ window height in pixels
+        -> CInt                     -- ^ window width in pixels
+        -> CInt                     -- ^ window height in pixels
         -> SF WinInput (Game, Bool) -- ^ signal function to animate
         -> IO ()
 animate title winWidth winHeight sf = do
-    window <- openWindow title (toEnum winWidth, toEnum winHeight)
+    window <- openWindow title (winWidth, winHeight)
 
     lastInteraction <- newMVar =<< SDL.time   
     -- Input Logic ---------------------------------------------------------
@@ -76,7 +83,34 @@ animate title winWidth winHeight sf = do
                sf
 
     closeWindow window
+
+-- animate :: SDL.Window
+--         -> Descriptor
+--         -> SF WinInput WinOutput  -- ^ signal function to animate
+--         -> IO ()
+-- animate window resources sf =
+--   do
+--     reactimate (return NoEvent)
+--                senseInput
+--                renderOutput
+--                sf
+--     closeWindow window
     
+--       where
+--         senseInput _ =
+--           do
+--             lastInteraction <- newMVar =<< SDL.time
+--             currentTime <- SDL.time                          
+--             dt <- (currentTime -) <$> swapMVar lastInteraction currentTime
+--             mEvent <- SDL.pollEvent                          
+--             return (dt, Event . SDL.eventPayload <$> mEvent) 
+
+--         renderOutput _ (game, shouldExit) =
+--           do
+--             uniforms <- initUniforms game
+--             draw window resources
+--             return shouldExit
+               
 playerPos :: Double -> SF AppInput Double
 playerPos pp0 =
   switch sf cont
@@ -217,8 +251,7 @@ data Game =
      { pPos :: Double    -- Player Position
      , bPos :: Pos       -- Ball   Position
      , gStg :: GameStage -- Game   Stage
-     } 
-  deriving Show
+     } deriving Show
 
 type Pos  = (Double, Double)
 
@@ -269,14 +302,16 @@ gameSession =
       where bv0 = (0.5,0.5) :: (Double, Double)
 
 -- < Global Constants > ---------------------------------------------------
-mBlur     = 0.25 :: Float
+mBlur     = 0.45 :: Float
 loadDelay = 5.0  :: Double
-resX      = 800  :: Int
-resY      = 600  :: Int
+resX      = 800  :: CInt
+resY      = 600  :: CInt
 
 -- < Main Function > ------------------------------------------------------
 main :: IO ()
 main =  do
+
+  window    <- openWindow "e1337" (resX, resY)
   animate "Pong"
             resX
             resY
